@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:cg_assignment/utils/sprite_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -19,12 +20,17 @@ class _SpriteState extends State<Sprite> {
   var rowFocusNode = FocusNode();
   var columnFocusNode = FocusNode();
   var isLoading = false;
+  int get row => int.parse(rowController?.text);
+  int get col => int.parse(columnController?.text);
+  var x = 0;
+  var y = 0;
 
   var isPickFile = false;
 
   var imagePath = 'assets/sprite_sheet_3.png';
   image.Image imageFrame;
   image.Image sprite;
+  ui.Image uiSprite;
 
   pickFile() async {
     FilePickerResult result = await FilePicker.platform.pickFiles(
@@ -50,20 +56,32 @@ class _SpriteState extends State<Sprite> {
     else if (imagePath.endsWith(".gif"))
       sprite = image.decodeGif(await File(imagePath).readAsBytes());
 
+    uiSprite = await SpriteService.getUiImage(sprite);
     setState(() => isLoading = false);
   }
 
   animateSprite() async {
-    await SpriteService.animateSprite(
-        sprite: sprite,
-        rows: int.parse(rowController.text),
-        columns: int.parse(columnController.text),
-        delay: int.parse(delayController.text),
-        onFrameChange: (frame) {
-          setState(() {
-            imageFrame = frame;
-          });
+    // await SpriteService.animateSprite(
+    //     sprite: sprite,
+    //     rows: int.parse(rowController.text),
+    //     columns: int.parse(columnController.text),
+    //     delay: int.parse(delayController.text),
+    //     onFrameChange: (frame) {
+    //       setState(() {
+    //         imageFrame = frame;
+    //       });
+    //     });
+
+    for (var i = 0; i < row; i++) {
+      for (var j = 0; j < col; j++) {
+        setState(() {
+          x = j;
+          y = i;
         });
+        await Future.delayed(
+            Duration(milliseconds: int.parse(delayController.text)));
+      }
+    }
   }
 
   changeSprite(value) async {
@@ -86,12 +104,13 @@ class _SpriteState extends State<Sprite> {
         break;
     }
 
-    setState(() {
-      if (imagePath.endsWith(".png"))
-        sprite = image.decodePng(data.buffer.asUint8List());
-      else if (imagePath.endsWith(".jpg"))
-        sprite = image.decodeJpg(data.buffer.asUint8List());
-    });
+    if (imagePath.endsWith(".png"))
+      sprite = image.decodePng(data.buffer.asUint8List());
+    else if (imagePath.endsWith(".jpg"))
+      sprite = image.decodeJpg(data.buffer.asUint8List());
+
+    uiSprite = await SpriteService.getUiImage(sprite);
+    setState(() {});
   }
 
   @override
@@ -208,12 +227,15 @@ class _SpriteState extends State<Sprite> {
             ),
             Expanded(
               child: Center(
-                child: imageFrame == null || imageFrame.length == 0
-                    ? Icon(FontAwesome.pause)
-                    : Image.memory(
-                        image.encodeJpg(imageFrame),
-                      ),
-              ),
+                  child: uiSprite == null
+                      ? Icon(FontAwesome.pause)
+                      : CustomPaint(
+                          painter: DrawSprite(uiSprite, row, col, x, y),
+                          child: Container())
+                  // Image.memory(
+                  //     image.encodeJpg(imageFrame),
+                  //   ),
+                  ),
             ),
             RaisedButton(
               onPressed: () => animateSprite(),
